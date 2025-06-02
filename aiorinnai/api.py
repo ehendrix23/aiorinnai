@@ -69,6 +69,22 @@ AWS_EXCEPTIONS: dict[str, type[CloudError]] = {
     "PasswordResetRequiredException": PasswordChangeRequired,
 }
 
+class RinnaiCognito(pycognito.Cognito):
+    def renew_access_token(self):
+        """
+        Sets a new access token on the User using the cached refresh token.
+        """
+        auth_params = {"REFRESH_TOKEN": self.refresh_token}
+        self._add_secret_hash(auth_params, "SECRET_HASH")
+        LOGGER.debug("Refreshing token")
+        refresh_response = self.client.initiate_auth(
+            ClientId=self.client_id,
+            AuthFlow="REFRESH_TOKEN",
+            AuthParameters=auth_params,
+        )
+        self._set_tokens(refresh_response)
+        self.expires_in=self.token_type = tokens["AuthenticationResult"]["ExpiresIn"]
+
 @attr.s
 class API(object):
     # Represents a Rinnai Water Heater, with methods for status and issuing commands
@@ -145,6 +161,7 @@ class API(object):
             id_token: str,
             access_token: str,
             refresh_token: str | None = None,
+            expires_in: int | None = None,
     ) -> asyncio.Task | None:
         self.id_token = id_token
         self.access_token = access_token
@@ -157,6 +174,8 @@ class API(object):
         if not self.user:
             self.user = User(self._request, self.username)
 
+        LOGGER.debug("Token has been updated and will expire in %d seconds.", expires_in)
+
         return None
 
     async def async_login(self, email: str, password: str = None, access_token: str = None, refresh_token: str = None) -> None:
@@ -167,7 +186,7 @@ class API(object):
             cognito = await self.loop.run_in_executor(None, partial(self._create_cognito_client, username=email),)
             await self.loop.run_in_executor(None, partial(cognito.authenticate,password=password),)
 
-            task = await self.update_token(cognito.id_token, cognito.access_token, cognito.refresh_token)
+            task = await self.update_token(cognito.id_token, cognito.access_token, cognito.refresh_token, cognito.expires_in)
 
             if task:
                 await task
@@ -206,7 +225,7 @@ class API(object):
 
         try:
             await self.loop.run_in_executor(None, cognito.renew_access_token)
-            await self.update_token(cognito.id_token, cognito.access_token)
+            await self.update_token(cognito.id_token, cognito.access_token, cognito.renew_access_token, cognito.expires_in)
 
         except ClientError as err:
             raise _map_aws_exception(err) from err
@@ -264,7 +283,7 @@ def _cached_cognito(
 
     NOTE: This will do I/O
     """
-    return pycognito.Cognito(
+    return RinnaiCognito(
         user_pool_id=user_pool_id,
         client_id=client_id,
         user_pool_region=user_pool_region,
