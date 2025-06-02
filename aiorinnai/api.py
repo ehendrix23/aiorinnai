@@ -83,7 +83,7 @@ class RinnaiCognito(pycognito.Cognito):
             AuthParameters=auth_params,
         )
         self._set_tokens(refresh_response)
-        self.expires_in=self.token_type = tokens["AuthenticationResult"]["ExpiresIn"]
+        self.expires_in=tokens["AuthenticationResult"]["ExpiresIn"]
 
 @attr.s
 class API(object):
