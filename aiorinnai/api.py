@@ -76,7 +76,7 @@ class RinnaiCognito(pycognito.Cognito):
         """
         auth_params = {"REFRESH_TOKEN": self.refresh_token}
         self._add_secret_hash(auth_params, "SECRET_HASH")
-        LOGGER.debug("Refreshing token")
+        LOGGER.debug("Refreshing token, current refresh token is %s of type %s", self.refresh_token, type(self.refresh_token) )
         refresh_response = self.client.initiate_auth(
             ClientId=self.client_id,
             AuthFlow="REFRESH_TOKEN",
