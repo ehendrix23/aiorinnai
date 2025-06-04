@@ -83,6 +83,7 @@ class RinnaiCognito(pycognito.Cognito):
             AuthParameters=auth_params,
         )
         self._set_tokens(refresh_response)
+        LOGGER.debug("Refreshing token is of type %s", type(self.refresh_token) )
         self.expires_in=refresh_response["AuthenticationResult"]["ExpiresIn"]
 
 @attr.s
@@ -166,6 +167,7 @@ class API(object):
         self.id_token = id_token
         self.access_token = access_token
         if refresh_token is not None:
+            LOGGER.debug("Refreshing token is of type %s", type(refresh_token) )
             self.refresh_token = refresh_token
 
         if not self.device:
@@ -175,6 +177,7 @@ class API(object):
             self.user = User(self._request, self.username)
 
         LOGGER.debug("Token has been updated and will expire in %d seconds.", expires_in)
+        LOGGER.debug("Refreshing token stored is of type %s", type(self.refresh_token) )
 
         return None
 
@@ -219,13 +222,14 @@ class API(object):
         if access_token is not None:
             self.access_token = access_token
         if refresh_token is not None:
+            LOGGER.debug("Refresh token to renew access is of type %s", type(refresh_token) )
             self.refresh_token = refresh_token
 
         cognito = await self._async_authenticated_cognito()
 
         try:
             await self.loop.run_in_executor(None, cognito.renew_access_token)
-            await self.update_token(cognito.id_token, cognito.access_token, cognito.renew_access_token, cognito.expires_in)
+            await self.update_token(cognito.id_token, cognito.access_token, cognito.refresh_token, cognito.expires_in)
 
         except ClientError as err:
             raise _map_aws_exception(err) from err
