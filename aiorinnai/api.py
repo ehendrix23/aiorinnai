@@ -76,14 +76,13 @@ class RinnaiCognito(pycognito.Cognito):
         """
         auth_params = {"REFRESH_TOKEN": self.refresh_token}
         self._add_secret_hash(auth_params, "SECRET_HASH")
-        LOGGER.debug("Refreshing token, current refresh token is %s of type %s", self.refresh_token, type(self.refresh_token) )
+        LOGGER.debug("Refreshing token.")
         refresh_response = self.client.initiate_auth(
             ClientId=self.client_id,
             AuthFlow="REFRESH_TOKEN",
             AuthParameters=auth_params,
         )
         self._set_tokens(refresh_response)
-        LOGGER.debug("Refreshing token is of type %s", type(self.refresh_token) )
         self.expires_in=refresh_response["AuthenticationResult"]["ExpiresIn"]
 
 @attr.s
@@ -167,7 +166,6 @@ class API(object):
         self.id_token = id_token
         self.access_token = access_token
         if refresh_token is not None:
-            LOGGER.debug("Refreshing token is of type %s", type(refresh_token) )
             self.refresh_token = refresh_token
 
         if not self.device:
@@ -177,7 +175,6 @@ class API(object):
             self.user = User(self._request, self.username)
 
         LOGGER.debug("Token has been updated and will expire in %d seconds.", expires_in)
-        LOGGER.debug("Refreshing token stored is of type %s", type(self.refresh_token) )
 
         return None
 
